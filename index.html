@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Garabato — Diseña · Agiliza · Ejecuta</title>
+  <meta name="description" content="Garabato MVP: del diseño de la política pública a la ejecución en campo." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+
+  <a class="salto" href="#vista">Saltar al contenido</a>
+
+  <!-- Filtro de crayón para los conectores de la Teoría de Cambio -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <filter id="crayon-rough" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="7" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.5" xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+    </defs>
+  </svg>
+
+  <!-- ============ BARRA SUPERIOR ============ -->
+  <header class="topbar">
+    <div class="topbar-marca">
+      <span class="wordmark">GARABATO<span class="acento">_</span></span>
+      <span class="programa-nombre" id="topbar-programa"></span>
+    </div>
+
+    <nav class="modulos" aria-label="Módulos" id="nav-modulos">
+      <button class="modulo-tab" data-vista="disena">Diseña</button>
+      <button class="modulo-tab" data-vista="agiliza">Agiliza</button>
+      <button class="modulo-tab" data-vista="ejecuta">Ejecuta</button>
+      <button class="modulo-tab" data-vista="audita">Audita</button>
+      <button class="modulo-tab" data-vista="tablero">Tablero</button>
+    </nav>
+
+    <div class="topbar-rol">
+      <button class="rol-actual" id="btn-rol" popovertarget="menu-roles" aria-label="Cambiar de rol">
+        <span class="avatar" id="rol-avatar"></span>
+        <span class="rol-textos">
+          <span class="rol-nombre" id="rol-nombre"></span>
+          <span class="rol-cargo" id="rol-cargo"></span>
+        </span>
+        <span class="caret" aria-hidden="true">▾</span>
+      </button>
+      <div id="menu-roles" popover class="menu-pop" role="menu"></div>
+    </div>
+  </header>
+
+  <!-- ============ VISTA ACTIVA ============ -->
+  <main id="vista" class="vista" tabindex="-1"></main>
+
+  <!-- ============ PANEL LATERAL DE TAREA (Agiliza) ============ -->
+  <aside id="panel-tarea" class="panel-tarea" hidden aria-label="Detalle de tarea"></aside>
+  <div id="panel-fondo" class="panel-fondo" hidden></div>
+
+  <!-- ============ DIÁLOGOS ============ -->
+  <dialog id="dialogo-indicadores" class="dialogo">
+    <form method="dialog" class="dialogo-cuerpo" id="form-indicadores">
+      <header class="dialogo-cabecera">
+        <h2 class="dialogo-titulo">Catálogo de indicadores</h2>
+        <button value="cancelar" class="btn-icono" aria-label="Cerrar">✕</button>
+      </header>
+      <input type="search" id="buscar-indicador" class="campo" placeholder="Buscar indicador…" autocomplete="off" />
+      <ul class="lista-indicadores" id="lista-indicadores"></ul>
+      <footer class="dialogo-pie">
+        <span class="nota-fuente">Catálogo de muestra · MIDE Jalisco se conectará vía API</span>
+      </footer>
+    </form>
+  </dialog>
+
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/disena.js"></script>
+  <script src="js/agiliza.js"></script>
+  <script src="js/ejecuta.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
