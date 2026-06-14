@@ -27,8 +27,9 @@ var Disena = (function () {
   var detalleIndId = null;    // indicador con su ficha de detalle abierta
   var alRedimensionar = null; // handler vivo de resize para los conectores
 
-  /* Estado del lienzo (vive fuera del repintado para conservar pan/zoom) */
-  var vistaToC = { pan: { x: 0, y: 0 }, zoom: 1, inicializado: false };
+  /* Estado del lienzo (vive fuera del repintado para conservar pan/zoom y
+     el espaciado por columna). colOffset: px horizontales extra por etapa. */
+  var vistaToC = { pan: { x: 0, y: 0 }, zoom: 1, inicializado: false, colOffset: {} };
 
   function rw() { return Store.permiso('disena') === 'rw'; }
 
@@ -158,11 +159,17 @@ var Disena = (function () {
     ETAPAS.forEach(function (etapa, idx) {
       var col = E('div', { class: 'toc-col', dataset: { etapa: etapa.id } });
       col.style.setProperty('--col-color', etapa.color);
-      col.appendChild(E('div', { class: 'toc-col-cabecera' }, [
+      var off = vistaToC.colOffset[etapa.id] || 0;
+      if (off) col.style.transform = 'translateX(' + off + 'px)';
+
+      var cab = E('div', { class: 'toc-col-cabecera', title: 'Arrastra para espaciar esta columna' }, [
+        E('span', { class: 'toc-col-grip', 'aria-hidden': 'true' }, ['⠿']),
         E('span', { class: 'punto', style: 'background:' + etapa.color }, []),
         etapa.nombre,
         E('span', { class: 'toc-col-num' }, [String(st.toc.nodos.filter(function (n) { return n.etapa === etapa.id; }).length)]),
-      ]));
+      ]);
+      col.appendChild(cab);
+      activarArrastreColumna(cab, col, etapa.id, lienzo, svg);
       var lista = E('div', { class: 'toc-lista' });
       st.toc.nodos.filter(function (n) { return n.etapa === etapa.id; }).forEach(function (n) {
         lista.appendChild(tarjetaToC(n, etapa, idx, puede));
@@ -229,6 +236,49 @@ var Disena = (function () {
       var factor = ev.deltaY < 0 ? 1.1 : 1 / 1.1;
       zoomHacia(lienzo, cx, cy, factor);
     }, { passive: false });
+  }
+
+  /* Arrastrar una columna en horizontal para espaciarla, sin cruzar a sus
+     vecinas: se acota contra las columnas de al lado (separación mínima). */
+  function activarArrastreColumna(handle, col, etapaId, lienzo, svg) {
+    handle.addEventListener('mousedown', function (ev) {
+      if (ev.button !== 0) return;
+      ev.stopPropagation();   // que no paneé el lienzo
+      ev.preventDefault();
+
+      var cols = Array.prototype.slice.call(lienzo.querySelectorAll('.toc-col'));
+      var idx = cols.indexOf(col);
+      var prev = cols[idx - 1] || null;
+      var next = cols[idx + 1] || null;
+      var z = vistaToC.zoom || 1;
+      var minGap = 24 * z;    // separación mínima (px de pantalla)
+
+      var rCol = col.getBoundingClientRect();
+      var rPrev = prev ? prev.getBoundingClientRect() : null;
+      var rNext = next ? next.getBoundingClientRect() : null;
+      var startOffset = vistaToC.colOffset[etapaId] || 0;
+      var sx = ev.clientX;
+
+      /* Límites en el espacio de offset (px del lienzo, sin escalar) */
+      var minO = rPrev ? startOffset + (rPrev.right + minGap - rCol.left) / z : startOffset - 800;
+      var maxO = rNext ? startOffset + (rNext.left - minGap - rCol.right) / z : startOffset + 800;
+
+      handle.classList.add('arrastrando-col');
+      function mover(e) {
+        var o = startOffset + (e.clientX - sx) / z;
+        o = Math.min(maxO, Math.max(minO, o));
+        vistaToC.colOffset[etapaId] = o;
+        col.style.transform = o ? 'translateX(' + o + 'px)' : '';
+        dibujarConectores(lienzo, svg);
+      }
+      function soltar() {
+        handle.classList.remove('arrastrando-col');
+        document.removeEventListener('mousemove', mover);
+        document.removeEventListener('mouseup', soltar);
+      }
+      document.addEventListener('mousemove', mover);
+      document.addEventListener('mouseup', soltar);
+    });
   }
 
   function zoomHacia(lienzo, cx, cy, factor) {
