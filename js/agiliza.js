@@ -8,6 +8,7 @@ var Agiliza = (function () {
   var tareaAbierta = null;
   var creandoSprint = false;
   var creandoEpica = false;
+  var _idCampoPanel = 0; // contador para asociar labels con sus campos
 
   function rw() { return Store.permiso('agiliza') === 'rw'; }
 
@@ -402,7 +403,13 @@ var Agiliza = (function () {
     }
 
     function grupo(etiqueta, control) {
-      return E('div', { class: 'panel-grupo' }, [E('label', { class: 'etiqueta' }, [etiqueta]), control]);
+      var lab = E('label', { class: 'etiqueta' }, [etiqueta]);
+      var tag = control.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') {
+        if (!control.id) control.id = 'fp-' + (++_idCampoPanel);
+        lab.setAttribute('for', control.id);
+      }
+      return E('div', { class: 'panel-grupo' }, [lab, control]);
     }
 
     /* Título */

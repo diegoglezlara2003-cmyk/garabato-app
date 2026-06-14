@@ -26,6 +26,7 @@ var Disena = (function () {
   var nodoIndicadores = null; // nodo cuyo picker de indicadores está abierto
   var detalleIndId = null;    // indicador con su ficha de detalle abierta
   var alRedimensionar = null; // handler vivo de resize para los conectores
+  var _idCampo = 0;           // contador para asociar labels con sus campos
 
   /* Estado del lienzo (vive fuera del repintado para conservar pan/zoom y
      el espaciado por columna). colOffset: px horizontales extra por etapa. */
@@ -264,15 +265,19 @@ var Disena = (function () {
       var maxO = rNext ? startOffset + (rNext.left - minGap - rCol.right) / z : startOffset + 800;
 
       handle.classList.add('arrastrando-col');
+      var raf = null;
       function mover(e) {
         var o = startOffset + (e.clientX - sx) / z;
         o = Math.min(maxO, Math.max(minO, o));
         vistaToC.colOffset[etapaId] = o;
         col.style.transform = o ? 'translateX(' + o + 'px)' : '';
-        dibujarConectores(lienzo, svg);
+        /* coalescer el redibujo de conectores a un cuadro por frame */
+        if (!raf) raf = requestAnimationFrame(function () { raf = null; dibujarConectores(lienzo, svg); });
       }
       function soltar() {
         handle.classList.remove('arrastrando-col');
+        if (raf) { cancelAnimationFrame(raf); raf = null; }
+        dibujarConectores(lienzo, svg); // posición final exacta
         document.removeEventListener('mousemove', mover);
         document.removeEventListener('mouseup', soltar);
       }
@@ -318,6 +323,9 @@ var Disena = (function () {
     var texto = E('div', {
       class: 'toc-card-texto',
       contenteditable: puede && !enlaceOrigen ? 'true' : null,
+      role: puede && !enlaceOrigen ? 'textbox' : null,
+      'aria-multiline': puede && !enlaceOrigen ? 'true' : null,
+      'aria-label': 'Texto de la tarjeta de ' + etapa.nombre,
       'data-placeholder': 'Escribe…',
     }, [n.texto || (puede ? '' : '—')]);
     if (!n.texto && puede) texto.textContent = '';
@@ -338,7 +346,13 @@ var Disena = (function () {
     }
 
     if (n.supuesto || n._editandoSupuesto) {
-      var sup = E('div', { class: 'toc-supuesto', contenteditable: puede ? 'true' : null }, [n.supuesto || '']);
+      var sup = E('div', {
+        class: 'toc-supuesto',
+        contenteditable: puede ? 'true' : null,
+        role: puede ? 'textbox' : null,
+        'aria-multiline': puede ? 'true' : null,
+        'aria-label': 'Supuesto de la tarjeta',
+      }, [n.supuesto || '']);
       sup.addEventListener('blur', function () {
         var v = sup.textContent.trim();
         Store.mutar(function (s) { var x = Store.nodo(n.id); x.supuesto = v; delete x._editandoSupuesto; });
@@ -458,7 +472,9 @@ var Disena = (function () {
     svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
 
     var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-    defs.innerHTML = '<marker id="toc-flecha" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#2B3FD6"/></marker>';
+    /* fill/stroke via style para resolver el token --kune (los atributos de
+       presentación SVG no resuelven custom properties; el style sí) */
+    defs.innerHTML = '<marker id="toc-flecha" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" style="fill:var(--kune)"/></marker>';
     svg.appendChild(defs);
 
     var z = vistaToC.zoom || 1;
@@ -478,7 +494,7 @@ var Disena = (function () {
       var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       path.setAttribute('d', 'M' + x1 + ' ' + y1 + ' C ' + (x1 + dx) + ' ' + y1 + ', ' + (x2 - dx) + ' ' + y2 + ', ' + x2 + ' ' + y2);
       path.setAttribute('fill', 'none');
-      path.setAttribute('stroke', '#2B3FD6');
+      path.style.stroke = 'var(--kune)';
       path.setAttribute('stroke-width', '2');
       path.setAttribute('stroke-linecap', 'round');
       path.setAttribute('opacity', '0.85');
@@ -539,7 +555,13 @@ var Disena = (function () {
     ]));
 
     function grupo(etiqueta, control) {
-      return E('div', { class: 'detalle-campo' }, [E('label', { class: 'etiqueta' }, [etiqueta]), control]);
+      var lab = E('label', { class: 'etiqueta' }, [etiqueta]);
+      var tag = control.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') {
+        if (!control.id) control.id = 'fd-' + (++_idCampo);
+        lab.setAttribute('for', control.id);
+      }
+      return E('div', { class: 'detalle-campo' }, [lab, control]);
     }
     function guardar(campo, valor) { Store.actualizarIndicador(ind.id, definirCampo(campo, valor)); }
 
@@ -781,7 +803,13 @@ var Disena = (function () {
 
   function celdaMedios(node, indId, puede) {
     var val = (node.mediosPorIndicador && node.mediosPorIndicador[indId]) || '';
-    var td = E('td', { class: 'mir-medios', contenteditable: (puede && indId) ? 'true' : null }, [val]);
+    var ind = indId ? Store.indicador(indId) : null;
+    var td = E('td', {
+      class: 'mir-medios',
+      contenteditable: (puede && indId) ? 'true' : null,
+      role: (puede && indId) ? 'textbox' : null,
+      'aria-label': ind ? 'Medios de verificación de ' + ind.nombre : null,
+    }, [val]);
     if (puede && indId) {
       td.addEventListener('blur', function () {
         var v = td.textContent.trim();

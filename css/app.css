@@ -635,6 +635,15 @@ button.chip { cursor: pointer; }
 }
 .toc-agregar:hover { border-color: var(--tinta); color: var(--tinta); background: var(--papel-tarjeta); }
 
+/* En dispositivos táctiles los controles del lienzo crecen para poder tocarse,
+   sin recargar la densidad del escritorio (puntero fino los mantiene compactos) */
+@media (pointer: coarse) {
+  .toc-card-pie { flex-wrap: wrap; gap: var(--s-2); opacity: 1; }
+  .toc-mini { min-height: 40px; padding: var(--s-2) var(--s-3); }
+  .toc-conectar { width: 40px; height: 40px; }
+  .toc-conectar::before { inset: -4px; }
+}
+
 /* ==========================================================================
    DISEÑA — MIR
    ========================================================================== */

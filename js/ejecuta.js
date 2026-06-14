@@ -48,7 +48,7 @@ var Ejecuta = (function () {
     }, [st.offline ? '✈ sin señal' : '📶 en línea']);
 
     telefono.appendChild(E('header', { class: 'movil-cabecera' }, [
-      E('span', { class: 'movil-marca' }, ['GARABATO', E('span', { style: 'color:#2B3FD6' }, ['_'])]),
+      E('span', { class: 'movil-marca' }, ['GARABATO', E('span', { style: 'color:var(--kune)' }, ['_'])]),
       E('span', { class: 'movil-usuario' }, [toggle, UI.avatar('marco', true)]),
     ]));
 
