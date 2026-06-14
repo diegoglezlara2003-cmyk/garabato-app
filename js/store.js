@@ -2,11 +2,12 @@
    store.js — estado, semilla y persistencia (localStorage)
    Modelo pensado para portarse a un backend auditable: cada mutación pasa
    por Store.mutar(), el único punto donde se escribe estado.
+   VERSION 3: multi-programa (programas[]) + sidebar
    ========================================================================= */
 
 var Store = (function () {
   var CLAVE = 'garabato-mvp-v1';
-  var VERSION = 2;
+  var VERSION = 3;
 
   /* Dimensiones del indicador (metodología MIR) */
   var DIMENSIONES = ['Eficacia', 'Eficiencia', 'Economía', 'Calidad'];
@@ -20,7 +21,7 @@ var Store = (function () {
     { id: 'gomez',  nombre: 'Gómez',  cargo: 'Auditor',                 color: '#E63B2E', iniciales: 'GO' },
   ];
 
-  /* Permisos por rol: rw = edita, ro = consulta, lock = módulo en roadmap */
+  /* Permisos por rol */
   var PERMISOS = {
     lucia:  { disena: 'rw',  agiliza: 'ro',  ejecuta: 'ro',  audita: 'lock', tablero: 'lock' },
     carlos: { disena: 'ro',  agiliza: 'rw',  ejecuta: 'ro',  audita: 'lock', tablero: 'lock' },
@@ -31,10 +32,7 @@ var Store = (function () {
 
   var VISTA_INICIO = { lucia: 'disena', carlos: 'agiliza', marco: 'ejecuta', reyes: 'tablero', gomez: 'audita' };
 
-  /* ---------- Catálogo de indicadores ----------
-     Dos tipos: externos (editable:false, de fuentes como MIDE Jalisco, solo
-     lectura) y personalizados (editable:true, creados por la usuaria). Vive
-     dentro del estado para que los indicadores nuevos persistan. */
+  /* ---------- Catálogo de indicadores ---------- */
   function catalogoSemilla() {
     return [
       { id: 'ind-01', editable: false, nombre: 'Porcentaje de cobertura arbórea urbana', dimension: 'Eficacia', definicion: 'Proporción de la superficie urbana cubierta por copa arbórea respecto a la superficie total del polígono.', metodoCalculo: '(Superficie con cobertura arbórea / Superficie total del polígono) × 100', origen: 'MIDE Jalisco', unidad: '%', fuente: 'MIDE Jalisco (muestra)' },
@@ -52,29 +50,18 @@ var Store = (function () {
     ];
   }
 
-  /* ---------- Semilla: Reforestación Urbana AMG ---------- */
-  function semilla() {
+  /* ---------- Semillas de programa ---------- */
+
+  function programaReforestacion() {
     return {
-      version: VERSION,
-      rolActual: 'lucia',
-      vistaActual: 'disena',
-      subvistaDisena: 'toc',
-      epicaFiltro: null,
-      offline: false,
-
-      catalogo: catalogoSemilla(),
-
-      programa: {
-        nombre: 'Reforestación Urbana — AMG',
-        dependencia: 'Secretaría de Medio Ambiente · Gobierno de Jalisco',
-        poblacion: 'Habitantes de polígonos con índice alto de isla de calor en el Área Metropolitana de Guadalajara (est. 48,000 personas)',
-        presupuesto: '$12,400,000 MXN',
-        inicio: '2026-05-01',
-        fin: '2027-04-30',
-        descripcion: 'Programa de arbolado urbano con participación comunitaria: diagnóstico de polígonos, plantación de especies nativas y adopción vecinal del arbolado.',
-      },
-
-      /* Teoría de Cambio: 5 etapas */
+      id: 'prog-1',
+      nombre: 'Reforestación Urbana — AMG',
+      dependencia: 'Secretaría de Medio Ambiente · Gobierno de Jalisco',
+      poblacion: 'Habitantes de polígonos con índice alto de isla de calor en el Área Metropolitana de Guadalajara (est. 48,000 personas)',
+      presupuesto: '$12,400,000 MXN',
+      inicio: '2026-05-01',
+      fin: '2027-04-30',
+      descripcion: 'Programa de arbolado urbano con participación comunitaria: diagnóstico de polígonos, plantación de especies nativas y adopción vecinal del arbolado.',
       toc: {
         nodos: [
           { id: 'n-i1', etapa: 'insumos', texto: 'Presupuesto estatal asignado ($12.4 MDP) y vivero metropolitano', supuesto: '', indicadores: ['ind-07'], mediosPorIndicador: { 'ind-07': 'Estados financieros del programa' } },
@@ -88,30 +75,21 @@ var Store = (function () {
           { id: 'n-m1', etapa: 'impacto', texto: 'Reducción de 1.5°C en temperatura superficial de los polígonos al año 3', supuesto: 'No hay cambios de uso de suelo masivos en la zona', indicadores: ['ind-04'], mediosPorIndicador: { 'ind-04': 'Estudio de temperatura superficial' } },
         ],
         enlaces: [
-          { de: 'n-i1', a: 'n-a1' },
-          { de: 'n-i1', a: 'n-a2' },
-          { de: 'n-i2', a: 'n-a2' },
-          { de: 'n-i2', a: 'n-a3' },
-          { de: 'n-a1', a: 'n-p1' },
-          { de: 'n-a2', a: 'n-p1' },
-          { de: 'n-a3', a: 'n-p2' },
-          { de: 'n-p1', a: 'n-r1' },
-          { de: 'n-p2', a: 'n-r1' },
+          { de: 'n-i1', a: 'n-a1' }, { de: 'n-i1', a: 'n-a2' }, { de: 'n-i2', a: 'n-a2' },
+          { de: 'n-i2', a: 'n-a3' }, { de: 'n-a1', a: 'n-p1' }, { de: 'n-a2', a: 'n-p1' },
+          { de: 'n-a3', a: 'n-p2' }, { de: 'n-p1', a: 'n-r1' }, { de: 'n-p2', a: 'n-r1' },
           { de: 'n-r1', a: 'n-m1' },
         ],
       },
-
       epicas: [
         { id: 'ep-1', nombre: 'Fase 0 — Diagnóstico', color: '#29C5D6' },
         { id: 'ep-2', nombre: 'Fase 1 — Plantación', color: '#1FA86B' },
         { id: 'ep-3', nombre: 'Fase 2 — Adopción vecinal', color: '#F977B6' },
       ],
-
       sprints: [
         { id: 'sp-1', nombre: 'Sprint 1', inicio: '2026-06-04', fin: '2026-06-18', activo: true },
         { id: 'sp-2', nombre: 'Sprint 2', inicio: '2026-06-19', fin: '2026-07-03', activo: false },
       ],
-
       tareas: [
         {
           id: 't-1', titulo: 'Levantar índice de isla de calor en 12 polígonos', origen: 'n-a1',
@@ -161,6 +139,159 @@ var Store = (function () {
     };
   }
 
+  function programaAgua() {
+    return {
+      id: 'prog-2',
+      nombre: 'Programa de Agua Potable Rural — Jalisco',
+      dependencia: 'SIAPA · Gobierno de Jalisco',
+      poblacion: 'Comunidades rurales de Jalisco con índice de rezago hídrico alto (est. 12,000 familias)',
+      presupuesto: '$8,200,000 MXN',
+      inicio: '2026-03-01',
+      fin: '2027-02-28',
+      descripcion: 'Dotación de infraestructura básica de agua potable en comunidades rurales marginadas, incluyendo captación, potabilización y red de distribución.',
+      toc: {
+        nodos: [
+          { id: 'p2-i1', etapa: 'insumos',     texto: 'Presupuesto federal FAIS asignado ($8.2 MDP) y equipamiento técnico', supuesto: '', indicadores: [], mediosPorIndicador: {} },
+          { id: 'p2-a1', etapa: 'actividades', texto: 'Diagnóstico de fuentes de agua y calidad en 20 comunidades', supuesto: 'Acceso vial en temporada seca', indicadores: [], mediosPorIndicador: {} },
+          { id: 'p2-a2', etapa: 'actividades', texto: 'Instalación de sistemas de captación y potabilización', supuesto: 'Proveedores disponibles en tiempo y forma', indicadores: [], mediosPorIndicador: {} },
+          { id: 'p2-p1', etapa: 'productos',   texto: '20 sistemas de agua potable instalados y en operación', supuesto: '', indicadores: [], mediosPorIndicador: {} },
+          { id: 'p2-r1', etapa: 'resultados',  texto: '12,000 familias con acceso a agua potable de calidad', supuesto: 'Comités de agua comunitarios operando', indicadores: [], mediosPorIndicador: {} },
+        ],
+        enlaces: [
+          { de: 'p2-i1', a: 'p2-a1' }, { de: 'p2-i1', a: 'p2-a2' },
+          { de: 'p2-a1', a: 'p2-p1' }, { de: 'p2-a2', a: 'p2-p1' },
+          { de: 'p2-p1', a: 'p2-r1' },
+        ],
+      },
+      epicas: [
+        { id: 'p2-ep1', nombre: 'Fase 1 — Diagnóstico hídrico', color: '#5FA9F5' },
+        { id: 'p2-ep2', nombre: 'Fase 2 — Instalación', color: '#1FA86B' },
+      ],
+      sprints: [
+        { id: 'p2-sp1', nombre: 'Sprint 1', inicio: '2026-06-04', fin: '2026-06-18', activo: true },
+      ],
+      tareas: [
+        {
+          id: 'p2-t1', titulo: 'Diagnóstico de calidad de agua en 5 comunidades piloto', origen: 'p2-a1',
+          indicadores: [], epica: 'p2-ep1', sprint: 'p2-sp1', estado: 'doing', asignado: 'marco',
+          inicio: '2026-06-04', fin: '2026-06-12',
+          evidencia: 'Análisis de laboratorio + fotografías de fuentes',
+          reportes: [],
+        },
+        {
+          id: 'p2-t2', titulo: 'Mapeo de infraestructura existente en 20 comunidades', origen: 'p2-a1',
+          indicadores: [], epica: 'p2-ep1', sprint: 'p2-sp1', estado: 'todo', asignado: 'marco',
+          inicio: '2026-06-10', fin: '2026-06-18',
+          evidencia: 'Croquis georeferenciado por comunidad',
+          reportes: [],
+        },
+        {
+          id: 'p2-t3', titulo: 'Licitación de equipamiento de potabilización', origen: 'p2-a2',
+          indicadores: [], epica: 'p2-ep2', sprint: null, estado: 'idea', asignado: null,
+          inicio: '', fin: '',
+          evidencia: '',
+          reportes: [],
+        },
+      ],
+    };
+  }
+
+  function programaMujeres() {
+    return {
+      id: 'prog-3',
+      nombre: 'Programa de Atención a Mujeres en Situación de Riesgo',
+      dependencia: 'Secretaría de Igualdad Sustantiva · Gobierno de Jalisco',
+      poblacion: 'Mujeres mayores de 18 años en situación de violencia de género en ZMG (est. 6,500 mujeres/año)',
+      presupuesto: '$5,600,000 MXN',
+      inicio: '2026-01-01',
+      fin: '2026-12-31',
+      descripcion: 'Atención integral a mujeres en situación de violencia: orientación jurídica, atención psicológica, refugio temporal y talleres de autonomía económica.',
+      toc: {
+        nodos: [
+          { id: 'p3-i1', etapa: 'insumos',     texto: 'Red de 8 centros de atención y equipo multidisciplinario (psicólogas, abogadas, trabajadoras sociales)', supuesto: '', indicadores: [], mediosPorIndicador: {} },
+          { id: 'p3-a1', etapa: 'actividades', texto: 'Brindar atención psicológica y orientación jurídica a mujeres en crisis', supuesto: 'Acceso seguro y confidencial garantizado', indicadores: [], mediosPorIndicador: {} },
+          { id: 'p3-a2', etapa: 'actividades', texto: 'Impartir talleres de autonomía económica y empleabilidad', supuesto: 'Participación sostenida de las usuarias', indicadores: [], mediosPorIndicador: {} },
+          { id: 'p3-p1', etapa: 'productos',   texto: '6,500 mujeres con al menos una atención integral registrada', supuesto: '', indicadores: [], mediosPorIndicador: {} },
+          { id: 'p3-r1', etapa: 'resultados',  texto: 'Reducción del 15% en reincidencia de violencia en usuarias atendidas', supuesto: 'Vinculación con redes de apoyo comunitario', indicadores: [], mediosPorIndicador: {} },
+        ],
+        enlaces: [
+          { de: 'p3-i1', a: 'p3-a1' }, { de: 'p3-i1', a: 'p3-a2' },
+          { de: 'p3-a1', a: 'p3-p1' }, { de: 'p3-a2', a: 'p3-p1' },
+          { de: 'p3-p1', a: 'p3-r1' },
+        ],
+      },
+      epicas: [
+        { id: 'p3-ep1', nombre: 'Atención directa', color: '#F977B6' },
+        { id: 'p3-ep2', nombre: 'Talleres de autonomía', color: '#6A3FD4' },
+      ],
+      sprints: [
+        { id: 'p3-sp1', nombre: 'Sprint 1', inicio: '2026-06-01', fin: '2026-06-30', activo: true },
+      ],
+      tareas: [
+        {
+          id: 'p3-t1', titulo: 'Levantar indicadores de atención del primer semestre', origen: 'p3-a1',
+          indicadores: [], epica: 'p3-ep1', sprint: 'p3-sp1', estado: 'doing', asignado: 'carlos',
+          inicio: '2026-06-01', fin: '2026-06-15',
+          evidencia: 'Reporte estadístico firmado por coordinadora',
+          reportes: [],
+        },
+        {
+          id: 'p3-t2', titulo: 'Programar talleres de julio–agosto en 3 centros', origen: 'p3-a2',
+          indicadores: [], epica: 'p3-ep2', sprint: 'p3-sp1', estado: 'todo', asignado: null,
+          inicio: '2026-06-10', fin: '2026-06-30',
+          evidencia: 'Cronograma de talleres validado por coordinación',
+          reportes: [],
+        },
+        {
+          id: 'p3-t3', titulo: 'Actualizar directorio de redes de apoyo comunitario', origen: 'p3-a1',
+          indicadores: [], epica: 'p3-ep1', sprint: null, estado: 'idea', asignado: null,
+          inicio: '', fin: '',
+          evidencia: '',
+          reportes: [],
+        },
+      ],
+    };
+  }
+
+  function programaNuevo() {
+    return {
+      id: 'prog-4',
+      nombre: 'Nuevo programa',
+      dependencia: '',
+      poblacion: '',
+      presupuesto: '',
+      inicio: '',
+      fin: '',
+      descripcion: '',
+      toc: { nodos: [], enlaces: [] },
+      epicas: [],
+      sprints: [],
+      tareas: [],
+    };
+  }
+
+  /* ---------- Semilla completa ---------- */
+  function semilla() {
+    return {
+      version: VERSION,
+      rolActual: 'lucia',
+      vistaActual: 'disena',
+      subvistaDisena: 'toc',
+      epicaFiltro: null,
+      offline: false,
+      sidebar: { abierto: false },
+      favoritos: [],
+      catalogo: catalogoSemilla(),
+      programaActual: 'prog-1',
+      programas: [
+        programaReforestacion(),
+        programaAgua(),
+        programaMujeres(),
+        programaNuevo(),
+      ],
+    };
+  }
+
   /* ---------- Persistencia ---------- */
   var estado = null;
   var subscriptores = [];
@@ -176,14 +307,10 @@ var Store = (function () {
     return estado;
   }
 
-  /* Sube datos antiguos (v1) al esquema actual sin perder lo capturado:
-     - agrega el catálogo de indicadores si falta
-     - convierte el campo único `medios` de cada nodo a `mediosPorIndicador`
-     - asegura los campos nuevos del indicador en el catálogo */
+  /* Migration: v1 → v2 → v3. Each step is idempotent and gated. */
   function migrar(st) {
+    /* ── Catalog patches (v1→v2, idempotent) ── */
     if (!st.catalogo) st.catalogo = catalogoSemilla();
-
-    /* Catálogo: garantizar campos nuevos en indicadores ya existentes */
     var base = catalogoSemilla();
     st.catalogo.forEach(function (ind) {
       if (ind.editable === undefined) ind.editable = false;
@@ -192,7 +319,6 @@ var Store = (function () {
       if (ind.metodoCalculo === undefined) ind.metodoCalculo = '';
       if (ind.origen === undefined) ind.origen = (ind.fuente || '').replace(' (muestra)', '');
     });
-    /* Si el catálogo viejo perdió metadatos, recupéralos de la semilla por id */
     base.forEach(function (sem) {
       var actual = st.catalogo.find(function (i) { return i.id === sem.id; });
       if (actual && !actual.definicion) {
@@ -203,19 +329,71 @@ var Store = (function () {
       }
     });
 
-    /* Nodos: medios (string único) -> mediosPorIndicador (mapa) */
-    if (st.toc && st.toc.nodos) {
-      st.toc.nodos.forEach(function (n) {
+    /* ── v2→v3: wrap flat keys into programas[] ── */
+    if (!st.programas) {
+      /* patch mediosPorIndicador on v1 toc nodes first */
+      if (st.toc && st.toc.nodos) {
+        st.toc.nodos.forEach(function (n) {
+          if (!n.mediosPorIndicador) {
+            n.mediosPorIndicador = {};
+            if (n.medios && n.indicadores && n.indicadores.length) {
+              n.mediosPorIndicador[n.indicadores[0]] = n.medios;
+            }
+          }
+          delete n.medios;
+        });
+      }
+
+      st.programas = [
+        {
+          id: 'prog-1',
+          nombre:      (st.programa && st.programa.nombre)      || 'Reforestación Urbana — AMG',
+          dependencia: (st.programa && st.programa.dependencia) || '',
+          poblacion:   (st.programa && st.programa.poblacion)   || '',
+          presupuesto: (st.programa && st.programa.presupuesto) || '',
+          inicio:      (st.programa && st.programa.inicio)      || '',
+          fin:         (st.programa && st.programa.fin)         || '',
+          descripcion: (st.programa && st.programa.descripcion) || '',
+          toc:     st.toc     || { nodos: [], enlaces: [] },
+          epicas:  st.epicas  || [],
+          sprints: st.sprints || [],
+          tareas:  st.tareas  || [],
+        },
+        programaAgua(),
+        programaMujeres(),
+        programaNuevo(),
+      ];
+      st.programaActual = 'prog-1';
+      st.favoritos = [];
+      st.sidebar = { abierto: false };
+      delete st.programa;
+      delete st.toc;
+      delete st.epicas;
+      delete st.sprints;
+      delete st.tareas;
+    }
+
+    /* ── Guard: ensure v3 root fields on already-migrated state ── */
+    if (!st.sidebar)        st.sidebar = { abierto: false };
+    if (!st.favoritos)      st.favoritos = [];
+    if (!st.programaActual) st.programaActual = st.programas[0].id;
+
+    /* ── Ensure each programa has all required fields + toc node patch ── */
+    (st.programas || []).forEach(function (prog) {
+      if (!prog.toc)     prog.toc = { nodos: [], enlaces: [] };
+      if (!prog.epicas)  prog.epicas = [];
+      if (!prog.sprints) prog.sprints = [];
+      if (!prog.tareas)  prog.tareas = [];
+      (prog.toc.nodos || []).forEach(function (n) {
         if (!n.mediosPorIndicador) {
           n.mediosPorIndicador = {};
-          /* el medio único previo se asigna al primer indicador del nodo */
           if (n.medios && n.indicadores && n.indicadores.length) {
             n.mediosPorIndicador[n.indicadores[0]] = n.medios;
           }
+          delete n.medios;
         }
-        delete n.medios;
       });
-    }
+    });
 
     st.version = VERSION;
   }
@@ -227,13 +405,11 @@ var Store = (function () {
       localStorage.setItem(CLAVE, JSON.stringify(estado));
       fallaGuardado = false;
     } catch (e) {
-      /* Memoria local llena: el estado sigue en memoria, pero el usuario DEBE saberlo */
       fallaGuardado = true;
       if (window.UI) UI.toast('⚠ Memoria local llena — los cambios nuevos no se están guardando');
     }
   }
 
-  /* Fracción aproximada de la cuota usada (~5MB típicos de localStorage) */
   function usoAlmacen() {
     try {
       var crudo = localStorage.getItem(CLAVE) || '';
@@ -241,7 +417,7 @@ var Store = (function () {
     } catch (e) { return 0; }
   }
 
-  /* Única puerta de mutación: aquí se conectará la bitácora auditable */
+  /* Única puerta de mutación */
   function mutar(fn) {
     fn(estado);
     guardar();
@@ -260,12 +436,54 @@ var Store = (function () {
     subscriptores.forEach(function (s) { s(estado); });
   }
 
-  /* ---------- Consultas frecuentes ---------- */
-  function persona(id) { return PERSONAS.find(function (p) { return p.id === id; }) || null; }
-  function catalogo() { return estado.catalogo || []; }
-  function indicador(id) { return catalogo().find(function (i) { return i.id === id; }) || null; }
+  /* ---------- Helper privado: programa activo ---------- */
+  function programaActualObj() {
+    return estado.programas.find(function (p) { return p.id === estado.programaActual; })
+        || estado.programas[0];
+  }
 
-  /* Crea un indicador personalizado (editable) y devuelve su id */
+  /* ---------- Consultas frecuentes ---------- */
+  function persona(id)    { return PERSONAS.find(function (p) { return p.id === id; }) || null; }
+  function catalogo()     { return estado.catalogo || []; }
+  function indicador(id)  { return catalogo().find(function (i) { return i.id === id; }) || null; }
+  function nodo(id)       { return programaActualObj().toc.nodos.find(function (n) { return n.id === id; }) || null; }
+  function tarea(id)      { return programaActualObj().tareas.find(function (t) { return t.id === id; }) || null; }
+  function epica(id)      { return programaActualObj().epicas.find(function (e) { return e.id === id; }) || null; }
+  function sprint(id)     { return programaActualObj().sprints.find(function (s) { return s.id === id; }) || null; }
+  function permiso(vista) { return (PERMISOS[estado.rolActual] || {})[vista] || null; }
+
+  /* ---------- Accessors: programa(s) ---------- */
+  function programa()   { return programaActualObj(); }
+  function programas()  { return estado.programas || []; }
+
+  /* ---------- Mutations: programa helpers ---------- */
+
+  /* Merge campos into the active program's top-level fields */
+  function actualizarPrograma(campos) {
+    mutar(function (s) {
+      var prog = s.programas.find(function (p) { return p.id === s.programaActual; });
+      if (!prog) return;
+      Object.keys(campos).forEach(function (k) { prog[k] = campos[k]; });
+    });
+  }
+
+  /* Run fn(prog, s) against the active program */
+  function progMutar(fn) {
+    mutar(function (s) {
+      var prog = s.programas.find(function (p) { return p.id === s.programaActual; });
+      if (prog) fn(prog, s);
+    });
+  }
+
+  /* Run fn(toc, prog, s) against the active program's toc */
+  function tocMutar(fn) {
+    mutar(function (s) {
+      var prog = s.programas.find(function (p) { return p.id === s.programaActual; });
+      if (prog) fn(prog.toc, prog, s);
+    });
+  }
+
+  /* ---------- Indicators ---------- */
   function crearIndicador(parcial) {
     var id = uid('ind');
     mutar(function (s) {
@@ -284,7 +502,6 @@ var Store = (function () {
     return id;
   }
 
-  /* Actualiza campos de un indicador (solo si es editable) */
   function actualizarIndicador(id, campos) {
     var ind = indicador(id);
     if (!ind || !ind.editable) return false;
@@ -294,34 +511,66 @@ var Store = (function () {
     });
     return true;
   }
-  function nodo(id) { return estado.toc.nodos.find(function (n) { return n.id === id; }) || null; }
-  function tarea(id) { return estado.tareas.find(function (t) { return t.id === id; }) || null; }
-  function epica(id) { return estado.epicas.find(function (e) { return e.id === id; }) || null; }
-  function sprint(id) { return estado.sprints.find(function (s) { return s.id === id; }) || null; }
-  function permiso(vista) { return (PERMISOS[estado.rolActual] || {})[vista] || null; }
+
+  /* ---------- Sidebar ---------- */
+  function toggleSidebar() {
+    mutar(function (s) { s.sidebar.abierto = !s.sidebar.abierto; });
+  }
+
+  /* ---------- Program switching ---------- */
+  function cambiarPrograma(id, vistaDestino, subvistaDestino) {
+    mutar(function (s) {
+      s.programaActual = id;
+      s.epicaFiltro = null;
+      if (vistaDestino)   s.vistaActual     = vistaDestino;
+      if (subvistaDestino) s.subvistaDisena = subvistaDestino;
+    });
+  }
+
+  /* ---------- Favorites ---------- */
+  function toggleFavorito(id) {
+    mutar(function (s) {
+      var idx = (s.favoritos || []).indexOf(id);
+      if (idx === -1) s.favoritos.push(id);
+      else s.favoritos.splice(idx, 1);
+    });
+  }
+
+  function esFavorito(id) {
+    return (estado.favoritos || []).indexOf(id) !== -1;
+  }
 
   return {
-    PERSONAS: PERSONAS,
-    PERMISOS: PERMISOS,
-    VISTA_INICIO: VISTA_INICIO,
-    DIMENSIONES: DIMENSIONES,
-    cargar: cargar,
-    mutar: mutar,
-    alCambiar: alCambiar,
-    uid: uid,
-    reiniciar: reiniciar,
-    get: function () { return estado; },
-    guardadoFallo: function () { return fallaGuardado; },
-    usoAlmacen: usoAlmacen,
-    persona: persona,
-    catalogo: catalogo,
-    indicador: indicador,
-    crearIndicador: crearIndicador,
+    PERSONAS:            PERSONAS,
+    PERMISOS:            PERMISOS,
+    VISTA_INICIO:        VISTA_INICIO,
+    DIMENSIONES:         DIMENSIONES,
+    cargar:              cargar,
+    mutar:               mutar,
+    alCambiar:           alCambiar,
+    uid:                 uid,
+    reiniciar:           reiniciar,
+    get:                 function () { return estado; },
+    guardadoFallo:       function () { return fallaGuardado; },
+    usoAlmacen:          usoAlmacen,
+    persona:             persona,
+    catalogo:            catalogo,
+    indicador:           indicador,
+    crearIndicador:      crearIndicador,
     actualizarIndicador: actualizarIndicador,
-    nodo: nodo,
-    tarea: tarea,
-    epica: epica,
-    sprint: sprint,
-    permiso: permiso,
+    nodo:                nodo,
+    tarea:               tarea,
+    epica:               epica,
+    sprint:              sprint,
+    permiso:             permiso,
+    programa:            programa,
+    programas:           programas,
+    actualizarPrograma:  actualizarPrograma,
+    progMutar:           progMutar,
+    tocMutar:            tocMutar,
+    toggleSidebar:       toggleSidebar,
+    cambiarPrograma:     cambiarPrograma,
+    toggleFavorito:      toggleFavorito,
+    esFavorito:          esFavorito,
   };
 })();

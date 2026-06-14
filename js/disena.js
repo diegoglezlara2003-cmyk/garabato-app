@@ -70,7 +70,7 @@ var Disena = (function () {
   /* ============================ PROGRAMA ============================ */
 
   function renderPrograma(cont) {
-    var p = Store.get().programa;
+    var p = Store.programa();
     var puede = rw();
 
     function campo(nombre, etiqueta, tipo, valor, ancho) {
@@ -79,7 +79,7 @@ var Disena = (function () {
         : E('input', { class: 'campo', id: 'prog-' + nombre, type: tipo, disabled: !puede });
       input.value = valor || '';
       input.addEventListener('change', function () {
-        Store.mutar(function (s) { s.programa[nombre] = input.value; });
+        Store.actualizarPrograma(definirCampo(nombre, input.value));
         UI.toast('Programa actualizado');
       });
       return E('div', { class: ancho ? '' : null }, [
@@ -134,9 +134,10 @@ var Disena = (function () {
     var puede = rw();
 
     /* Barra: estado a la izquierda, controles del lienzo a la derecha */
+    var prog = Store.programa();
     var estado = enlaceOrigen
       ? E('span', { class: 'toc-aviso-conexion' }, ['Conectando — elige una tarjeta de la siguiente columna · Esc para cancelar'])
-      : E('span', { class: 'conteo-suave' }, [st.toc.nodos.length + ' tarjetas · ' + st.toc.enlaces.length + ' conexiones · arrastra el lienzo para moverte · rueda para zoom']);
+      : E('span', { class: 'conteo-suave' }, [prog.toc.nodos.length + ' tarjetas · ' + prog.toc.enlaces.length + ' conexiones · arrastra el lienzo para moverte · rueda para zoom']);
 
     var controles = E('div', { class: 'toc-controles' }, [
       E('button', { class: 'btn btn-quieto', 'aria-label': 'Alejar', onclick: function () { zoomPaso(1 / 1.2); } }, ['−']),
@@ -167,12 +168,12 @@ var Disena = (function () {
         E('span', { class: 'toc-col-grip', 'aria-hidden': 'true' }, ['⠿']),
         E('span', { class: 'punto', style: 'background:' + etapa.color }, []),
         etapa.nombre,
-        E('span', { class: 'toc-col-num' }, [String(st.toc.nodos.filter(function (n) { return n.etapa === etapa.id; }).length)]),
+        E('span', { class: 'toc-col-num' }, [String(prog.toc.nodos.filter(function (n) { return n.etapa === etapa.id; }).length)]),
       ]);
       col.appendChild(cab);
       activarArrastreColumna(cab, col, etapa.id, lienzo, svg);
       var lista = E('div', { class: 'toc-lista' });
-      st.toc.nodos.filter(function (n) { return n.etapa === etapa.id; }).forEach(function (n) {
+      prog.toc.nodos.filter(function (n) { return n.etapa === etapa.id; }).forEach(function (n) {
         lista.appendChild(tarjetaToC(n, etapa, idx, puede));
       });
       col.appendChild(lista);
@@ -181,7 +182,7 @@ var Disena = (function () {
           class: 'toc-agregar',
           onclick: function () {
             var nuevo = { id: Store.uid('n'), etapa: etapa.id, texto: '', supuesto: '', indicadores: [], mediosPorIndicador: {} };
-            Store.mutar(function (s) { s.toc.nodos.push(nuevo); });
+            Store.tocMutar(function (toc) { toc.nodos.push(nuevo); });
             requestAnimationFrame(function () {
               var elNuevo = document.querySelector('[data-nodo="' + nuevo.id + '"] .toc-card-texto');
               if (elNuevo) elNuevo.focus();
@@ -379,15 +380,15 @@ var Disena = (function () {
         onclick: function (ev) {
           ev.stopPropagation();
           var copia = JSON.parse(JSON.stringify(n));
-          var enlacesCopia = st.toc.enlaces.filter(function (l) { return l.de === n.id || l.a === n.id; });
-          Store.mutar(function (s) {
-            s.toc.nodos = s.toc.nodos.filter(function (x) { return x.id !== n.id; });
-            s.toc.enlaces = s.toc.enlaces.filter(function (l) { return l.de !== n.id && l.a !== n.id; });
+          var enlacesCopia = Store.programa().toc.enlaces.filter(function (l) { return l.de === n.id || l.a === n.id; });
+          Store.tocMutar(function (toc) {
+            toc.nodos = toc.nodos.filter(function (x) { return x.id !== n.id; });
+            toc.enlaces = toc.enlaces.filter(function (l) { return l.de !== n.id && l.a !== n.id; });
           });
           UI.toast('Tarjeta eliminada', 'Deshacer', function () {
-            Store.mutar(function (s) {
-              s.toc.nodos.push(copia);
-              enlacesCopia.forEach(function (l) { s.toc.enlaces.push(l); });
+            Store.tocMutar(function (toc) {
+              toc.nodos.push(copia);
+              enlacesCopia.forEach(function (l) { toc.enlaces.push(l); });
             });
           });
         },
@@ -432,10 +433,10 @@ var Disena = (function () {
   }
 
   function crearEnlace(de, a) {
-    var existe = Store.get().toc.enlaces.some(function (l) { return l.de === de && l.a === a; });
+    var existe = Store.programa().toc.enlaces.some(function (l) { return l.de === de && l.a === a; });
     enlaceOrigen = null;
     if (!existe) {
-      Store.mutar(function (s) { s.toc.enlaces.push({ de: de, a: a }); });
+      Store.tocMutar(function (toc) { toc.enlaces.push({ de: de, a: a }); });
       UI.toast('Conexión creada');
     } else {
       App.repintar();
@@ -444,13 +445,13 @@ var Disena = (function () {
   }
 
   function moverDeEtapa(nodoId, delta) {
-    Store.mutar(function (s) {
+    Store.tocMutar(function (toc) {
       var n = Store.nodo(nodoId);
       var i = ETAPAS.findIndex(function (e) { return e.id === n.etapa; });
       var j = Math.min(Math.max(i + delta, 0), ETAPAS.length - 1);
       if (i !== j) {
         n.etapa = ETAPAS[j].id;
-        s.toc.enlaces = s.toc.enlaces.filter(function (l) {
+        toc.enlaces = toc.enlaces.filter(function (l) {
           if (l.de !== nodoId && l.a !== nodoId) return true;
           var de = Store.nodo(l.de), a = Store.nodo(l.a);
           var iDe = ETAPAS.findIndex(function (e) { return e.id === de.etapa; });
@@ -464,7 +465,6 @@ var Disena = (function () {
   /* Conectores: béziers suaves, sin filtro de crayón. Coordenadas en el espacio
      local del lienzo (sin escalar) para que el zoom no las distorsione. */
   function dibujarConectores(lienzo, svg) {
-    var st = Store.get();
     svg.innerHTML = '';
     var w = lienzo.scrollWidth, h = lienzo.scrollHeight;
     svg.setAttribute('width', w);
@@ -480,7 +480,7 @@ var Disena = (function () {
     var z = vistaToC.zoom || 1;
     var lr = lienzo.getBoundingClientRect();
 
-    st.toc.enlaces.forEach(function (l) {
+    Store.programa().toc.enlaces.forEach(function (l) {
       var elDe = lienzo.querySelector('[data-nodo="' + l.de + '"]');
       var elA = lienzo.querySelector('[data-nodo="' + l.a + '"]');
       if (!elDe || !elA) return;
@@ -503,11 +503,11 @@ var Disena = (function () {
         path.setAttribute('class', 'conector-borrable');
         path.addEventListener('click', function () {
           var copia = { de: l.de, a: l.a };
-          Store.mutar(function (s) {
-            s.toc.enlaces = s.toc.enlaces.filter(function (x) { return !(x.de === l.de && x.a === l.a); });
+          Store.tocMutar(function (toc) {
+            toc.enlaces = toc.enlaces.filter(function (x) { return !(x.de === l.de && x.a === l.a); });
           });
           UI.toast('Conexión eliminada', 'Deshacer', function () {
-            Store.mutar(function (s) { s.toc.enlaces.push(copia); });
+            Store.tocMutar(function (toc) { toc.enlaces.push(copia); });
           });
         });
       }
@@ -697,15 +697,15 @@ var Disena = (function () {
   /* Numeración: Componentes 1,2,3…; Actividades C.A según el componente que enlazan.
      Fin/Propósito quedan en blanco; actividades sin componente van al final. */
   function numerarMIR() {
-    var st = Store.get();
+    var toc = Store.programa().toc;
     var num = {};
-    var comps = st.toc.nodos.filter(function (n) { return n.etapa === 'productos'; });
+    var comps = toc.nodos.filter(function (n) { return n.etapa === 'productos'; });
     var compNum = {};
     comps.forEach(function (c, i) { compNum[c.id] = i + 1; num[c.id] = String(i + 1); });
     var sub = {};
     var orphanBase = comps.length + 1, orphan = 0;
-    st.toc.nodos.filter(function (n) { return n.etapa === 'actividades'; }).forEach(function (a) {
-      var link = st.toc.enlaces.find(function (l) { return l.de === a.id && compNum[l.a]; });
+    toc.nodos.filter(function (n) { return n.etapa === 'actividades'; }).forEach(function (a) {
+      var link = toc.enlaces.find(function (l) { return l.de === a.id && compNum[l.a]; });
       if (link) {
         var cn = compNum[link.a];
         sub[cn] = (sub[cn] || 0) + 1;
@@ -736,8 +736,9 @@ var Disena = (function () {
       ]),
     ]));
 
+    var progMIR = Store.programa();
     var tabla = E('table', { class: 'mir-tabla' });
-    tabla.appendChild(E('caption', {}, ['MIR — ' + st.programa.nombre + ' · ' + st.programa.dependencia]));
+    tabla.appendChild(E('caption', {}, ['MIR — ' + progMIR.nombre + ' · ' + progMIR.dependencia]));
     tabla.appendChild(E('thead', {}, [
       E('tr', {}, ['Nivel', '#', 'Resumen narrativo', 'Indicadores', 'Métodos de cálculo', 'Medios de verificación', 'Supuestos']
         .map(function (h) { return E('th', { scope: 'col' }, [h]); })),
@@ -745,7 +746,7 @@ var Disena = (function () {
 
     var cuerpo = E('tbody');
     NIVELES_MIR.forEach(function (nivel) {
-      var nodos = st.toc.nodos.filter(function (n) { return n.etapa === nivel.etapa; });
+      var nodos = progMIR.toc.nodos.filter(function (n) { return n.etapa === nivel.etapa; });
       if (nivel.etapa === 'productos' || nivel.etapa === 'actividades') {
         nodos = nodos.slice().sort(function (a, b) { return cmpNum(num[a.id], num[b.id]); });
       }
@@ -824,11 +825,11 @@ var Disena = (function () {
   }
 
   function exportarCSV() {
-    var st = Store.get();
+    var progCSV = Store.programa();
     var num = numerarMIR();
     var filas = [['Nivel', '#', 'Resumen narrativo', 'Indicador', 'Método de cálculo', 'Medios de verificación', 'Supuesto']];
     NIVELES_MIR.forEach(function (nivel) {
-      var nodos = st.toc.nodos.filter(function (n) { return n.etapa === nivel.etapa; });
+      var nodos = progCSV.toc.nodos.filter(function (n) { return n.etapa === nivel.etapa; });
       if (nivel.etapa === 'productos' || nivel.etapa === 'actividades') {
         nodos = nodos.slice().sort(function (a, b) { return cmpNum(num[a.id], num[b.id]); });
       }
@@ -854,7 +855,7 @@ var Disena = (function () {
     var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'MIR-' + st.programa.nombre.replace(/[^\wáéíóúñ-]+/gi, '-') + '.csv';
+    a.download = 'MIR-' + progCSV.nombre.replace(/[^\wáéíóúñ-]+/gi, '-') + '.csv';
     a.click();
     URL.revokeObjectURL(a.href);
     UI.toast('MIR exportada como CSV');

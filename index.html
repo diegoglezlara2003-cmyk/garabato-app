@@ -24,43 +24,87 @@
     </defs>
   </svg>
 
-  <!-- ============ BARRA SUPERIOR ============ -->
-  <header class="topbar">
-    <div class="topbar-marca">
-      <span class="wordmark">GARABATO<span class="acento">_</span></span>
-      <span class="programa-nombre" id="topbar-programa"></span>
-    </div>
+  <!-- ============ APP SHELL ============ -->
+  <div class="app-shell">
 
-    <nav class="modulos" aria-label="Módulos" id="nav-modulos">
-      <button class="modulo-tab" data-vista="disena">Diseña</button>
-      <button class="modulo-tab" data-vista="agiliza">Agiliza</button>
-      <button class="modulo-tab" data-vista="ejecuta">Ejecuta</button>
-      <button class="modulo-tab" data-vista="audita">Audita</button>
-      <button class="modulo-tab" data-vista="tablero">Tablero</button>
-    </nav>
+    <!-- ============ SIDEBAR ============ -->
+    <aside id="sidebar" class="sidebar" aria-label="Navegación de programas">
+      <div class="sidebar-cabecera">
+        <span class="wordmark sidebar-wordmark">GARABATO<span class="acento">_</span></span>
+        <button id="btn-cerrar-sidebar" class="btn-icono" aria-label="Colapsar menú lateral">❮</button>
+      </div>
 
-    <div class="topbar-rol">
-      <button class="rol-actual" id="btn-rol" popovertarget="menu-roles" aria-label="Cambiar de rol">
-        <span class="avatar" id="rol-avatar"></span>
-        <span class="rol-textos">
-          <span class="rol-nombre" id="rol-nombre"></span>
-          <span class="rol-cargo" id="rol-cargo"></span>
-        </span>
-        <span class="caret" aria-hidden="true">▾</span>
-      </button>
-      <div id="menu-roles" popover class="menu-pop" role="menu"></div>
-    </div>
-  </header>
+      <nav class="sidebar-nav" id="sidebar-nav" aria-label="Vistas rápidas">
+        <button class="sidebar-item" data-sidebar-vista="organizacion">
+          <span aria-hidden="true">🏛</span> Organización
+        </button>
+        <button class="sidebar-item sidebar-item-toggle" data-sidebar-vista="para-ti" aria-expanded="false">
+          <span class="sidebar-item-chevron" aria-hidden="true">▶</span>
+          <span aria-hidden="true">☑</span> Para ti
+        </button>
+        <div class="sidebar-dropdown-cont" id="sidebar-parati-cont" hidden></div>
+        <button class="sidebar-item sidebar-item-toggle" data-sidebar-vista="favoritos" aria-expanded="false">
+          <span class="sidebar-item-chevron" aria-hidden="true">▶</span>
+          <span aria-hidden="true">★</span> Favoritos
+        </button>
+        <div class="sidebar-dropdown-cont" id="sidebar-favoritos-cont" hidden></div>
+      </nav>
 
-  <!-- ============ VISTA ACTIVA ============ -->
-  <main id="vista" class="vista" tabindex="-1"></main>
+      <div class="sidebar-seccion">
+        <div class="sidebar-seccion-cabecera">
+          <span class="sidebar-seccion-titulo">Tus programas</span>
+          <button class="btn-icono" id="btn-agregar-programa" disabled title="Próximamente — alta de programas">+</button>
+        </div>
+        <div id="sidebar-programas" class="sidebar-programas"></div>
+      </div>
+    </aside>
+
+    <!-- Mobile backdrop -->
+    <div id="sidebar-fondo" class="sidebar-fondo" hidden aria-hidden="true"></div>
+
+    <!-- ============ ÁREA PRINCIPAL ============ -->
+    <div class="app-principal">
+
+      <!-- ============ BARRA SUPERIOR ============ -->
+      <header class="topbar">
+        <div class="topbar-marca">
+          <button id="btn-abrir-sidebar" class="btn-icono topbar-sidebar-btn" aria-label="Abrir menú lateral">❯</button>
+          <span class="wordmark" id="topbar-wordmark">GARABATO<span class="acento">_</span></span>
+          <span class="programa-nombre" id="topbar-programa"></span>
+        </div>
+
+        <nav class="modulos" aria-label="Módulos" id="nav-modulos">
+          <button class="modulo-tab" data-vista="disena">Diseña</button>
+          <button class="modulo-tab" data-vista="agiliza">Agiliza</button>
+          <button class="modulo-tab" data-vista="ejecuta">Ejecuta</button>
+          <button class="modulo-tab" data-vista="audita">Audita</button>
+          <button class="modulo-tab" data-vista="tablero">Tablero</button>
+        </nav>
+
+        <div class="topbar-rol">
+          <button class="rol-actual" id="btn-rol" popovertarget="menu-roles" aria-label="Cambiar de rol">
+            <span class="avatar" id="rol-avatar"></span>
+            <span class="rol-textos">
+              <span class="rol-nombre" id="rol-nombre"></span>
+              <span class="rol-cargo" id="rol-cargo"></span>
+            </span>
+            <span class="caret" aria-hidden="true">▾</span>
+          </button>
+          <div id="menu-roles" popover class="menu-pop" role="menu"></div>
+        </div>
+      </header>
+
+      <!-- ============ VISTA ACTIVA ============ -->
+      <main id="vista" class="vista" tabindex="-1"></main>
+
+    </div><!-- /app-principal -->
+  </div><!-- /app-shell -->
 
   <!-- ============ PANEL LATERAL DE TAREA (Agiliza) ============ -->
   <aside id="panel-tarea" class="panel-tarea" hidden aria-label="Detalle de tarea"></aside>
   <div id="panel-fondo" class="panel-fondo" hidden></div>
 
   <!-- ============ DIÁLOGOS ============ -->
-  <!-- Selector de indicadores (asignar a un nodo/tarea) -->
   <dialog id="dialogo-indicadores" class="dialogo">
     <form method="dialog" class="dialogo-cuerpo" id="form-indicadores">
       <header class="dialogo-cabecera">
@@ -76,7 +120,6 @@
     </form>
   </dialog>
 
-  <!-- Ficha de detalle del indicador (editable o solo lectura). Contenido dinámico. -->
   <dialog id="dialogo-indicador-detalle" class="dialogo">
     <div class="dialogo-cuerpo" id="detalle-indicador"></div>
   </dialog>

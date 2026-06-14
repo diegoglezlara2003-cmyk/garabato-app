@@ -16,15 +16,15 @@ var Ejecuta = (function () {
   ];
 
   function misTareas() {
-    var st = Store.get();
-    var activo = st.sprints.find(function (s) { return s.activo; });
+    var prog = Store.programa();
+    var activo = prog.sprints.find(function (s) { return s.activo; });
     if (!activo) return [];
-    return st.tareas.filter(function (t) { return t.sprint === activo.id && t.asignado === 'marco'; });
+    return prog.tareas.filter(function (t) { return t.sprint === activo.id && t.asignado === 'marco'; });
   }
 
   function pendientesDeSync() {
     var n = 0;
-    Store.get().tareas.forEach(function (t) {
+    Store.programa().tareas.forEach(function (t) {
       (t.reportes || []).forEach(function (r) { if (!r.sync) n++; });
     });
     return n;
@@ -303,7 +303,7 @@ var Ejecuta = (function () {
 
   function sincronizar() {
     var enCola = [];
-    Store.get().tareas.forEach(function (t) {
+    Store.programa().tareas.forEach(function (t) {
       (t.reportes || []).forEach(function (r) { if (!r.sync) enCola.push({ tarea: t.id, reporte: r.id }); });
     });
     if (!enCola.length) return;

@@ -15,7 +15,6 @@ var Agiliza = (function () {
   /* ============================ RENDER RAÍZ ============================ */
 
   function render(cont) {
-    var st = Store.get();
     var puede = rw();
 
     var acciones = E('div', { class: 'mir-acciones' });
@@ -46,18 +45,18 @@ var Agiliza = (function () {
   /* ============================ PUENTE ToC → TAREAS (H2.1) ============================ */
 
   function convertirToC() {
-    var st = Store.get();
-    var convertibles = st.toc.nodos.filter(function (n) {
+    var prog = Store.programa();
+    var convertibles = prog.toc.nodos.filter(function (n) {
       return (n.etapa === 'actividades' || n.etapa === 'productos') &&
-        !st.tareas.some(function (t) { return t.origen === n.id; });
+        !prog.tareas.some(function (t) { return t.origen === n.id; });
     });
     if (!convertibles.length) {
       UI.toast('Todo el diseño ya tiene tareas — no hay nada nuevo que convertir');
       return;
     }
-    Store.mutar(function (s) {
+    Store.progMutar(function (prog) {
       convertibles.forEach(function (n) {
-        s.tareas.push({
+        prog.tareas.push({
           id: Store.uid('t'),
           titulo: n.texto || '(tarjeta sin texto)',
           origen: n.id,
@@ -94,9 +93,9 @@ var Agiliza = (function () {
       ]);
     }
 
-    barra.appendChild(item(null, 'Todas las tareas', null, st.tareas.length));
-    st.epicas.forEach(function (ep) {
-      var n = st.tareas.filter(function (t) { return t.epica === ep.id; }).length;
+    barra.appendChild(item(null, 'Todas las tareas', null, Store.programa().tareas.length));
+    Store.programa().epicas.forEach(function (ep) {
+      var n = Store.programa().tareas.filter(function (t) { return t.epica === ep.id; }).length;
       barra.appendChild(item(ep.id, ep.nombre, ep.color, n));
     });
 
@@ -106,10 +105,10 @@ var Agiliza = (function () {
         var nombre = inEpica.value.trim();
         if (!nombre) { inEpica.focus(); return; }
         var colores = ['#29C5D6', '#1FA86B', '#F977B6', '#F58220', '#6A3FD4', '#5FA9F5', '#E63B2E', '#D8B98F'];
-        var usados = Store.get().epicas.length;
+        var usados = Store.programa().epicas.length;
         creandoEpica = false;
-        Store.mutar(function (s) {
-          s.epicas.push({ id: Store.uid('ep'), nombre: nombre, color: colores[usados % colores.length] });
+        Store.progMutar(function (prog) {
+          prog.epicas.push({ id: Store.uid('ep'), nombre: nombre, color: colores[usados % colores.length] });
         });
       };
       inEpica.addEventListener('keydown', function (ev) {
@@ -143,12 +142,12 @@ var Agiliza = (function () {
 
     if (creandoSprint && puede) principal.appendChild(formSprint());
 
-    st.sprints.forEach(function (sp) {
-      principal.appendChild(bloqueSprint(sp, st.tareas.filter(function (t) { return t.sprint === sp.id; }).filter(filtro), puede));
+    Store.programa().sprints.forEach(function (sp) {
+      principal.appendChild(bloqueSprint(sp, Store.programa().tareas.filter(function (t) { return t.sprint === sp.id; }).filter(filtro), puede));
     });
 
     /* Backlog */
-    var backlog = st.tareas.filter(function (t) { return !t.sprint; }).filter(filtro);
+    var backlog = Store.programa().tareas.filter(function (t) { return !t.sprint; }).filter(filtro);
     var bloque = E('section', { class: 'bloque-sprint', dataset: { contenedor: 'backlog' } });
     bloque.appendChild(E('header', { class: 'sprint-cabecera backlog-cabecera' }, [
       E('h2', { class: 'sprint-nombre' }, ['Backlog']),
@@ -196,8 +195,8 @@ var Agiliza = (function () {
       puede && !sp.activo ? E('button', {
         class: 'btn btn-quieto',
         onclick: function () {
-          Store.mutar(function (s) {
-            s.sprints.forEach(function (x) { x.activo = x.id === sp.id; });
+          Store.progMutar(function (prog) {
+            prog.sprints.forEach(function (x) { x.activo = x.id === sp.id; });
           });
           UI.toast(sp.nombre + ' es ahora el sprint activo');
         },
@@ -304,10 +303,11 @@ var Agiliza = (function () {
 
   function nuevaTarea() {
     var id = Store.uid('t');
-    Store.mutar(function (s) {
-      s.tareas.push({
+    var epicaFiltro = Store.get().epicaFiltro;
+    Store.progMutar(function (prog) {
+      prog.tareas.push({
         id: id, titulo: 'Nueva tarea', origen: null, indicadores: [],
-        epica: s.epicaFiltro || null, sprint: null, estado: 'idea', asignado: null,
+        epica: epicaFiltro || null, sprint: null, estado: 'idea', asignado: null,
         inicio: '', fin: '', evidencia: '', reportes: [],
       });
     });
@@ -321,7 +321,7 @@ var Agiliza = (function () {
 
   /* Alta de sprint en línea: nombre + fechas con validación (H2.5) */
   function formSprint() {
-    var n = Store.get().sprints.length + 1;
+    var n = Store.programa().sprints.length + 1;
 
     var inNombre = E('input', { class: 'campo', id: 'ns-nombre', value: 'Sprint ' + n, maxlength: '60' });
     var inInicio = E('input', { class: 'campo', id: 'ns-inicio', type: 'date' });
@@ -352,8 +352,8 @@ var Agiliza = (function () {
                 return;
               }
               creandoSprint = false;
-              Store.mutar(function (s) {
-                s.sprints.push({ id: Store.uid('sp'), nombre: inNombre.value.trim(), inicio: inInicio.value, fin: inFin.value, activo: false });
+              Store.progMutar(function (prog) {
+                prog.sprints.push({ id: Store.uid('sp'), nombre: inNombre.value.trim(), inicio: inInicio.value, fin: inFin.value, activo: false });
               });
               UI.toast('Sprint creado');
             },
@@ -422,7 +422,7 @@ var Agiliza = (function () {
     /* Épica + Sprint */
     var selEpica = E('select', { class: 'campo-select', disabled: !puede });
     selEpica.appendChild(E('option', { value: '' }, ['Sin épica']));
-    Store.get().epicas.forEach(function (ep) {
+    Store.programa().epicas.forEach(function (ep) {
       var op = E('option', { value: ep.id }, [ep.nombre]);
       if (t.epica === ep.id) op.selected = true;
       selEpica.appendChild(op);
@@ -433,7 +433,7 @@ var Agiliza = (function () {
 
     var selSprint = E('select', { class: 'campo-select', disabled: !puede });
     selSprint.appendChild(E('option', { value: '' }, ['Backlog (sin sprint)']));
-    Store.get().sprints.forEach(function (sp) {
+    Store.programa().sprints.forEach(function (sp) {
       var op = E('option', { value: sp.id }, [sp.nombre + (sp.activo ? ' · activo' : '')]);
       if (t.sprint === sp.id) op.selected = true;
       selSprint.appendChild(op);
@@ -533,10 +533,10 @@ var Agiliza = (function () {
         class: 'btn',
         onclick: function () {
           var copia = JSON.parse(JSON.stringify(t));
-          Store.mutar(function (s) { s.tareas = s.tareas.filter(function (x) { return x.id !== t.id; }); });
+          Store.progMutar(function (prog) { prog.tareas = prog.tareas.filter(function (x) { return x.id !== t.id; }); });
           cerrarPanel();
           UI.toast('Tarea eliminada', 'Deshacer', function () {
-            Store.mutar(function (s) { s.tareas.push(copia); });
+            Store.progMutar(function (prog) { prog.tareas.push(copia); });
           });
         },
       }, ['Eliminar tarea']));
