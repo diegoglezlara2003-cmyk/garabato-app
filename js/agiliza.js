@@ -486,11 +486,16 @@ var Agiliza = (function () {
     });
     panel.appendChild(grupo('Evidencia requerida', inEvidencia));
 
-    /* Indicadores enlazados */
+    /* Indicadores enlazados — el chip abre la ficha del indicador */
     var chips = E('div', { class: 'mir-indicadores' });
     (t.indicadores || []).forEach(function (id) {
       var ind = Store.indicador(id);
-      if (ind) chips.appendChild(E('span', { class: 'chip chip-ind' }, [ind.nombre]));
+      if (ind) chips.appendChild(E('button', {
+        class: 'chip chip-ind' + (ind.editable ? ' chip-ind-edit' : ''),
+        type: 'button',
+        title: 'Ver ficha del indicador',
+        onclick: function () { Disena.abrirDetalleIndicador(id); },
+      }, [ind.nombre]));
     });
     if (!(t.indicadores || []).length) chips.appendChild(E('span', { class: 'conteo-suave' }, ['Sin indicadores — se heredan al convertir desde la ToC.']));
     panel.appendChild(grupo('Indicadores', chips));

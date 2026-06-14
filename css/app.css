@@ -419,11 +419,41 @@ button { font: inherit; color: inherit; }
 .dialogo-pie { display: flex; justify-content: space-between; align-items: center; }
 .nota-fuente { font-family: var(--mono); font-size: var(--t-12); color: var(--tinta-70); }
 
-.lista-indicadores { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow: auto; display: grid; gap: var(--s-1); }
+.lista-indicadores { list-style: none; margin: 0; padding: 0; max-height: 340px; overflow: auto; display: grid; gap: var(--s-1); }
 .lista-indicadores li { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-2) var(--s-3); border: var(--borde-suave); }
 .lista-indicadores li:hover { background: var(--papel); }
+.ind-info { display: grid; gap: 2px; min-width: 0; }
 .ind-nombre { font-size: var(--t-13); }
-.ind-meta { font-family: var(--mono); font-size: var(--t-12); color: var(--tinta-70); white-space: nowrap; }
+.ind-nombre-btn {
+  font-family: var(--sans);
+  font-size: var(--t-13);
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--tinta);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--tinta-15);
+  text-underline-offset: 3px;
+}
+.ind-nombre-btn:hover { text-decoration-color: var(--kune); color: var(--kune); }
+.ind-meta { font-family: var(--mono); font-size: var(--t-12); color: var(--tinta-70); }
+
+/* Chip de indicador como botón (abre la ficha) */
+button.chip { cursor: pointer; }
+.chip-ind:hover { background: var(--crayon-esmeralda); color: var(--blanco); border-color: var(--crayon-esmeralda); }
+.chip-ind-edit { border-color: var(--crayon-morado); color: var(--crayon-morado); border-style: dashed; }
+.chip-ind-edit:hover { background: var(--crayon-morado); color: var(--blanco); border-color: var(--crayon-morado); }
+
+/* Ficha de detalle del indicador */
+.badge-tipo { font-family: var(--mono); font-size: 0.6875rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 1px var(--s-2); border: 1.5px solid currentColor; display: inline-block; margin-top: var(--s-1); }
+.badge-externo { color: var(--tinta-70); }
+.badge-custom { color: var(--crayon-morado); }
+.detalle-campo { display: grid; gap: var(--s-1); }
+.detalle-valor { margin: 0; font-size: var(--t-14); color: var(--tinta); white-space: pre-wrap; }
+.detalle-fila-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
+@media (max-width: 520px) { .detalle-fila-2 { grid-template-columns: 1fr; } }
 
 /* ==========================================================================
    DISEÑA — formulario de programa
@@ -437,7 +467,7 @@ button { font: inherit; color: inherit; }
    DISEÑA — constructor de Teoría de Cambio
    ========================================================================== */
 
-.toc-barra { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-4) var(--s-6); flex-wrap: wrap; }
+.toc-barra { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-3) var(--s-6); flex-wrap: wrap; }
 
 .toc-aviso-conexion {
   font-family: var(--mono);
@@ -447,19 +477,45 @@ button { font: inherit; color: inherit; }
   padding: var(--s-1) var(--s-3);
 }
 
-.toc-tablero {
+.toc-controles { display: flex; align-items: center; gap: var(--s-2); }
+.toc-zoom { font-family: var(--mono); font-size: var(--t-12); color: var(--tinta-70); min-width: 3.2em; text-align: center; }
+
+/* Viewport: recorta y captura el arrastre/zoom. Lienzo: se transforma. */
+.toc-viewport {
   position: relative;
-  display: grid;
-  grid-template-columns: repeat(5, minmax(220px, 1fr));
-  gap: var(--s-4);
-  padding: var(--s-4) var(--s-6) var(--s-12);
-  overflow-x: auto;
+  height: calc(100vh - 190px);
+  min-height: 420px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle, var(--tinta-15) 1px, transparent 1px);
+  background-size: 22px 22px;
+  border-top: var(--borde-suave);
+  border-bottom: var(--borde-suave);
+  cursor: grab;
+}
+.toc-viewport.arrastrando { cursor: grabbing; }
+
+.toc-lienzo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+  padding: var(--s-8);
 }
 
-.toc-conectores { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
-.toc-conectores path { pointer-events: stroke; cursor: pointer; }
+.toc-tablero {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 96px;                 /* aire entre columnas para ver las conexiones */
+}
 
-.toc-col { min-width: 0; }
+.toc-conectores { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; z-index: 0; }
+.toc-conectores path.conector-borrable { pointer-events: stroke; cursor: pointer; }
+.toc-conectores path.conector-borrable:hover { stroke-width: 4; opacity: 1; }
+
+.toc-col { width: 248px; flex: none; position: relative; z-index: 1; }
 
 .toc-col-cabecera {
   display: flex;
@@ -485,6 +541,13 @@ button { font: inherit; color: inherit; }
   box-shadow: var(--sello-sm);
   padding: var(--s-3);
   padding-right: 28px;
+  transition: transform var(--transicion), box-shadow var(--transicion);
+}
+/* Hover: la tarjeta se agranda para leerse/editarse cómodamente */
+.toc-card:hover {
+  transform: scale(1.06);
+  box-shadow: var(--sello);
+  z-index: 5;
 }
 .toc-card.enlazable { cursor: pointer; }
 .toc-card.enlazable:hover { outline: 3px solid var(--crayon-amarillo); }
@@ -492,6 +555,10 @@ button { font: inherit; color: inherit; }
 
 .toc-card-texto { font-size: var(--t-13); line-height: 1.45; overflow-wrap: break-word; white-space: pre-wrap; }
 .toc-card-texto[contenteditable="true"]:focus { outline: 2px solid var(--kune); outline-offset: 2px; background: var(--blanco); }
+
+/* Chips de indicadores dentro de la tarjeta */
+.toc-card-inds { display: flex; flex-wrap: wrap; gap: var(--s-1); margin-top: var(--s-2); }
+.toc-card-inds .chip-ind { font-size: 0.6875rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 
 .toc-supuesto {
   margin-top: var(--s-2);
@@ -561,7 +628,7 @@ button { font: inherit; color: inherit; }
 
 .mir-tabla-marco { overflow-x: auto; }
 
-.mir-tabla { width: 100%; border-collapse: collapse; background: var(--papel-tarjeta); border: var(--borde); min-width: 860px; }
+.mir-tabla { width: 100%; border-collapse: collapse; background: var(--papel-tarjeta); border: var(--borde); min-width: 1040px; }
 .mir-tabla caption { text-align: left; font-family: var(--mono); font-size: var(--t-12); color: var(--tinta-70); padding: var(--s-2) 0; caption-side: top; }
 .mir-tabla th {
   font-family: var(--mono);
@@ -577,9 +644,12 @@ button { font: inherit; color: inherit; }
 .mir-tabla td { border: var(--borde-suave); padding: var(--s-3); vertical-align: top; font-size: var(--t-13); }
 .mir-nivel { font-family: var(--mono); font-weight: 700; white-space: nowrap; background: var(--papel); }
 .mir-nivel .punto { margin-right: var(--s-1); }
+.mir-num { font-family: var(--mono); font-weight: 700; white-space: nowrap; text-align: center; background: var(--papel); color: var(--tinta-70); }
+.mir-resumen-texto { margin-bottom: var(--s-2); }
+.mir-metodo { font-size: var(--t-12); color: var(--tinta-70); }
 .mir-indicadores { display: flex; flex-wrap: wrap; gap: var(--s-1); }
 .mir-medios[contenteditable="true"]:focus { outline: 2px solid var(--kune); background: var(--blanco); }
-.mir-medios:empty::before { content: 'Haz clic para definir…'; color: var(--tinta-70); }
+.mir-medios:empty::before { content: 'Definir…'; color: var(--tinta-70); }
 .chip-ind { border-color: var(--crayon-esmeralda-tinta); color: var(--crayon-esmeralda-tinta); }
 .chip-agregar { border-style: dashed; color: var(--tinta-70); cursor: pointer; background: none; }
 .chip-agregar:hover { color: var(--tinta); border-color: var(--tinta); }
@@ -939,4 +1009,37 @@ button { font: inherit; color: inherit; }
   .contenido { padding: 0; }
   .mir-tabla { min-width: 0; box-shadow: none; }
   body { background: #fff; }
+}
+
+/* Exportar Teoría de Cambio a PDF: el lienzo se imprime a escala natural,
+   sin recorte ni transform, con columnas más juntas para caber en la hoja. */
+@page { size: landscape; margin: 12mm; }
+
+body.imprimiendo-toc .topbar,
+body.imprimiendo-toc .subtabs,
+body.imprimiendo-toc .vista-cabecera,
+body.imprimiendo-toc .toc-barra,
+body.imprimiendo-toc .toasts,
+body.imprimiendo-toc .solo-lectura { display: none !important; }
+
+@media print {
+  body.imprimiendo-toc .toc-viewport {
+    position: static;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    border: none;
+    background: #fff;
+  }
+  body.imprimiendo-toc .toc-lienzo {
+    position: static;
+    transform: none !important;
+    padding: 0;
+  }
+  body.imprimiendo-toc .toc-tablero { gap: 48px; }
+  body.imprimiendo-toc .toc-card { box-shadow: none; break-inside: avoid; }
+  body.imprimiendo-toc .toc-card:hover { transform: none; }
+  body.imprimiendo-toc .toc-card-pie,
+  body.imprimiendo-toc .toc-conectar,
+  body.imprimiendo-toc .toc-agregar { display: none !important; }
 }

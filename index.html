@@ -60,6 +60,7 @@
   <div id="panel-fondo" class="panel-fondo" hidden></div>
 
   <!-- ============ DIÁLOGOS ============ -->
+  <!-- Selector de indicadores (asignar a un nodo/tarea) -->
   <dialog id="dialogo-indicadores" class="dialogo">
     <form method="dialog" class="dialogo-cuerpo" id="form-indicadores">
       <header class="dialogo-cabecera">
@@ -69,9 +70,15 @@
       <input type="search" id="buscar-indicador" class="campo" placeholder="Buscar indicador…" autocomplete="off" />
       <ul class="lista-indicadores" id="lista-indicadores"></ul>
       <footer class="dialogo-pie">
-        <span class="nota-fuente">Catálogo de muestra · MIDE Jalisco se conectará vía API</span>
+        <span class="nota-fuente">Externos: solo lectura · MIDE Jalisco se conectará vía API</span>
+        <button type="button" class="btn btn-primario" id="crear-indicador">+ Crear indicador</button>
       </footer>
     </form>
+  </dialog>
+
+  <!-- Ficha de detalle del indicador (editable o solo lectura). Contenido dinámico. -->
+  <dialog id="dialogo-indicador-detalle" class="dialogo">
+    <div class="dialogo-cuerpo" id="detalle-indicador"></div>
   </dialog>
 
   <div id="toasts" class="toasts" role="status" aria-live="polite"></div>

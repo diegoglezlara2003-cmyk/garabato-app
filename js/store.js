@@ -6,6 +6,10 @@
 
 var Store = (function () {
   var CLAVE = 'garabato-mvp-v1';
+  var VERSION = 2;
+
+  /* Dimensiones del indicador (metodología MIR) */
+  var DIMENSIONES = ['Eficacia', 'Eficiencia', 'Economía', 'Calidad'];
 
   /* ---------- Personas (RBAC) ---------- */
   var PERSONAS = [
@@ -27,31 +31,38 @@ var Store = (function () {
 
   var VISTA_INICIO = { lucia: 'disena', carlos: 'agiliza', marco: 'ejecuta', reyes: 'tablero', gomez: 'audita' };
 
-  /* ---------- Catálogo de indicadores (muestra estilo MIDE Jalisco) ---------- */
-  var CATALOGO = [
-    { id: 'ind-01', nombre: 'Porcentaje de cobertura arbórea urbana', unidad: '%', fuente: 'MIDE Jalisco (muestra)' },
-    { id: 'ind-02', nombre: 'Árboles plantados con supervivencia a 12 meses', unidad: 'árboles', fuente: 'MIDE Jalisco (muestra)' },
-    { id: 'ind-03', nombre: 'Superficie de áreas verdes por habitante', unidad: 'm²/hab', fuente: 'MIDE Jalisco (muestra)' },
-    { id: 'ind-04', nombre: 'Temperatura superficial promedio en polígonos de intervención', unidad: '°C', fuente: 'MIDE Jalisco (muestra)' },
-    { id: 'ind-05', nombre: 'Personas beneficiadas por acciones de reforestación', unidad: 'personas', fuente: 'MIDE Jalisco (muestra)' },
-    { id: 'ind-06', nombre: 'Porcentaje de avance físico de la obra/acción', unidad: '%', fuente: 'Común' },
-    { id: 'ind-07', nombre: 'Porcentaje de presupuesto ejercido', unidad: '%', fuente: 'Común' },
-    { id: 'ind-08', nombre: 'Talleres comunitarios impartidos', unidad: 'talleres', fuente: 'Común' },
-    { id: 'ind-09', nombre: 'Asistentes a talleres de adopción de arbolado', unidad: 'personas', fuente: 'Común' },
-    { id: 'ind-10', nombre: 'Polígonos diagnosticados con índice de isla de calor', unidad: 'polígonos', fuente: 'MIDE Jalisco (muestra)' },
-    { id: 'ind-11', nombre: 'Convenios firmados con colonias y comités vecinales', unidad: 'convenios', fuente: 'Común' },
-    { id: 'ind-12', nombre: 'Porcentaje de reportes de campo con evidencia georreferenciada', unidad: '%', fuente: 'Común' },
-  ];
+  /* ---------- Catálogo de indicadores ----------
+     Dos tipos: externos (editable:false, de fuentes como MIDE Jalisco, solo
+     lectura) y personalizados (editable:true, creados por la usuaria). Vive
+     dentro del estado para que los indicadores nuevos persistan. */
+  function catalogoSemilla() {
+    return [
+      { id: 'ind-01', editable: false, nombre: 'Porcentaje de cobertura arbórea urbana', dimension: 'Eficacia', definicion: 'Proporción de la superficie urbana cubierta por copa arbórea respecto a la superficie total del polígono.', metodoCalculo: '(Superficie con cobertura arbórea / Superficie total del polígono) × 100', origen: 'MIDE Jalisco', unidad: '%', fuente: 'MIDE Jalisco (muestra)' },
+      { id: 'ind-02', editable: false, nombre: 'Árboles plantados con supervivencia a 12 meses', dimension: 'Eficacia', definicion: 'Número de árboles plantados que permanecen vivos doce meses después de su plantación.', metodoCalculo: 'Conteo en campo de árboles vivos a los 12 meses de la plantación', origen: 'MIDE Jalisco', unidad: 'árboles', fuente: 'MIDE Jalisco (muestra)' },
+      { id: 'ind-03', editable: false, nombre: 'Superficie de áreas verdes por habitante', dimension: 'Calidad', definicion: 'Metros cuadrados de áreas verdes disponibles por cada habitante del polígono.', metodoCalculo: 'Superficie total de áreas verdes / Número de habitantes', origen: 'MIDE Jalisco', unidad: 'm²/hab', fuente: 'MIDE Jalisco (muestra)' },
+      { id: 'ind-04', editable: false, nombre: 'Temperatura superficial promedio en polígonos de intervención', dimension: 'Eficacia', definicion: 'Temperatura superficial media registrada en los polígonos de intervención.', metodoCalculo: 'Promedio de mediciones de temperatura superficial por percepción remota', origen: 'MIDE Jalisco', unidad: '°C', fuente: 'MIDE Jalisco (muestra)' },
+      { id: 'ind-05', editable: false, nombre: 'Personas beneficiadas por acciones de reforestación', dimension: 'Eficacia', definicion: 'Número de personas que habitan en los polígonos intervenidos por el programa.', metodoCalculo: 'Suma de la población residente en los polígonos intervenidos', origen: 'MIDE Jalisco', unidad: 'personas', fuente: 'MIDE Jalisco (muestra)' },
+      { id: 'ind-06', editable: false, nombre: 'Porcentaje de avance físico de la obra/acción', dimension: 'Eficiencia', definicion: 'Proporción del avance físico de la obra o acción respecto a lo programado.', metodoCalculo: '(Avance físico real / Avance físico programado) × 100', origen: 'Común', unidad: '%', fuente: 'Común' },
+      { id: 'ind-07', editable: false, nombre: 'Porcentaje de presupuesto ejercido', dimension: 'Economía', definicion: 'Proporción del presupuesto ejercido respecto al presupuesto autorizado.', metodoCalculo: '(Presupuesto ejercido / Presupuesto autorizado) × 100', origen: 'Común', unidad: '%', fuente: 'Común' },
+      { id: 'ind-08', editable: false, nombre: 'Talleres comunitarios impartidos', dimension: 'Eficacia', definicion: 'Número de talleres comunitarios efectivamente impartidos durante el periodo.', metodoCalculo: 'Conteo de talleres impartidos según bitácora', origen: 'Común', unidad: 'talleres', fuente: 'Común' },
+      { id: 'ind-09', editable: false, nombre: 'Asistentes a talleres de adopción de arbolado', dimension: 'Eficacia', definicion: 'Número de personas que asistieron a los talleres de adopción de arbolado.', metodoCalculo: 'Suma de asistentes registrados en listas de asistencia', origen: 'Común', unidad: 'personas', fuente: 'Común' },
+      { id: 'ind-10', editable: false, nombre: 'Polígonos diagnosticados con índice de isla de calor', dimension: 'Eficiencia', definicion: 'Número de polígonos con diagnóstico de índice de isla de calor completado.', metodoCalculo: 'Conteo de polígonos con informe de diagnóstico concluido', origen: 'MIDE Jalisco', unidad: 'polígonos', fuente: 'MIDE Jalisco (muestra)' },
+      { id: 'ind-11', editable: false, nombre: 'Convenios firmados con colonias y comités vecinales', dimension: 'Eficacia', definicion: 'Número de convenios de adopción firmados con colonias y comités vecinales.', metodoCalculo: 'Conteo de convenios firmados en archivo', origen: 'Común', unidad: 'convenios', fuente: 'Común' },
+      { id: 'ind-12', editable: false, nombre: 'Porcentaje de reportes de campo con evidencia georreferenciada', dimension: 'Calidad', definicion: 'Proporción de reportes de campo que incluyen evidencia georreferenciada válida.', metodoCalculo: '(Reportes con evidencia georreferenciada / Total de reportes) × 100', origen: 'Común', unidad: '%', fuente: 'Común' },
+    ];
+  }
 
   /* ---------- Semilla: Reforestación Urbana AMG ---------- */
   function semilla() {
     return {
-      version: 1,
+      version: VERSION,
       rolActual: 'lucia',
       vistaActual: 'disena',
       subvistaDisena: 'toc',
       epicaFiltro: null,
       offline: false,
+
+      catalogo: catalogoSemilla(),
 
       programa: {
         nombre: 'Reforestación Urbana — AMG',
@@ -66,15 +77,15 @@ var Store = (function () {
       /* Teoría de Cambio: 5 etapas */
       toc: {
         nodos: [
-          { id: 'n-i1', etapa: 'insumos', texto: 'Presupuesto estatal asignado ($12.4 MDP) y vivero metropolitano', supuesto: '', medios: '', indicadores: ['ind-07'] },
-          { id: 'n-i2', etapa: 'insumos', texto: 'Brigadas de campo capacitadas (3 cuadrillas)', supuesto: 'Rotación de personal menor al 20%', medios: '', indicadores: [] },
-          { id: 'n-a1', etapa: 'actividades', texto: 'Diagnosticar polígonos prioritarios con índice de isla de calor', supuesto: 'Acceso a imágenes satelitales actualizadas', medios: 'Informe técnico de diagnóstico', indicadores: ['ind-10'] },
-          { id: 'n-a2', etapa: 'actividades', texto: 'Plantar 5,000 árboles nativos en polígonos prioritarios', supuesto: 'Temporada de lluvias dentro del rango histórico', medios: 'Actas de plantación georreferenciadas', indicadores: ['ind-02'] },
-          { id: 'n-a3', etapa: 'actividades', texto: 'Impartir talleres de adopción de arbolado con comités vecinales', supuesto: 'Participación vecinal sostenida', medios: 'Listas de asistencia firmadas', indicadores: ['ind-08', 'ind-09'] },
-          { id: 'n-p1', etapa: 'productos', texto: '5,000 árboles plantados y geolocalizados', supuesto: '', medios: 'Padrón de arbolado en sistema', indicadores: ['ind-02', 'ind-12'] },
-          { id: 'n-p2', etapa: 'productos', texto: '24 comités vecinales con convenio de adopción firmado', supuesto: '', medios: 'Convenios firmados en archivo', indicadores: ['ind-11'] },
-          { id: 'n-r1', etapa: 'resultados', texto: 'Cobertura arbórea aumenta 8% en polígonos intervenidos', supuesto: 'Supervivencia del arbolado ≥ 70%', medios: 'Comparativa satelital anual', indicadores: ['ind-01'] },
-          { id: 'n-m1', etapa: 'impacto', texto: 'Reducción de 1.5°C en temperatura superficial de los polígonos al año 3', supuesto: 'No hay cambios de uso de suelo masivos en la zona', medios: 'Estudio de temperatura superficial', indicadores: ['ind-04'] },
+          { id: 'n-i1', etapa: 'insumos', texto: 'Presupuesto estatal asignado ($12.4 MDP) y vivero metropolitano', supuesto: '', indicadores: ['ind-07'], mediosPorIndicador: { 'ind-07': 'Estados financieros del programa' } },
+          { id: 'n-i2', etapa: 'insumos', texto: 'Brigadas de campo capacitadas (3 cuadrillas)', supuesto: 'Rotación de personal menor al 20%', indicadores: [], mediosPorIndicador: {} },
+          { id: 'n-a1', etapa: 'actividades', texto: 'Diagnosticar polígonos prioritarios con índice de isla de calor', supuesto: 'Acceso a imágenes satelitales actualizadas', indicadores: ['ind-10'], mediosPorIndicador: { 'ind-10': 'Informe técnico de diagnóstico' } },
+          { id: 'n-a2', etapa: 'actividades', texto: 'Plantar 5,000 árboles nativos en polígonos prioritarios', supuesto: 'Temporada de lluvias dentro del rango histórico', indicadores: ['ind-02'], mediosPorIndicador: { 'ind-02': 'Actas de plantación georreferenciadas' } },
+          { id: 'n-a3', etapa: 'actividades', texto: 'Impartir talleres de adopción de arbolado con comités vecinales', supuesto: 'Participación vecinal sostenida', indicadores: ['ind-08', 'ind-09'], mediosPorIndicador: { 'ind-08': 'Bitácora de talleres impartidos', 'ind-09': 'Listas de asistencia firmadas' } },
+          { id: 'n-p1', etapa: 'productos', texto: '5,000 árboles plantados y geolocalizados', supuesto: '', indicadores: ['ind-02', 'ind-12'], mediosPorIndicador: { 'ind-02': 'Padrón de arbolado en sistema', 'ind-12': 'Reportes de campo en la app con geolocalización' } },
+          { id: 'n-p2', etapa: 'productos', texto: '24 comités vecinales con convenio de adopción firmado', supuesto: '', indicadores: ['ind-11'], mediosPorIndicador: { 'ind-11': 'Convenios firmados en archivo' } },
+          { id: 'n-r1', etapa: 'resultados', texto: 'Cobertura arbórea aumenta 8% en polígonos intervenidos', supuesto: 'Supervivencia del arbolado ≥ 70%', indicadores: ['ind-01'], mediosPorIndicador: { 'ind-01': 'Comparativa satelital anual' } },
+          { id: 'n-m1', etapa: 'impacto', texto: 'Reducción de 1.5°C en temperatura superficial de los polígonos al año 3', supuesto: 'No hay cambios de uso de suelo masivos en la zona', indicadores: ['ind-04'], mediosPorIndicador: { 'ind-04': 'Estudio de temperatura superficial' } },
         ],
         enlaces: [
           { de: 'n-i1', a: 'n-a1' },
@@ -161,7 +172,52 @@ var Store = (function () {
     } catch (e) {
       estado = semilla();
     }
+    migrar(estado);
     return estado;
+  }
+
+  /* Sube datos antiguos (v1) al esquema actual sin perder lo capturado:
+     - agrega el catálogo de indicadores si falta
+     - convierte el campo único `medios` de cada nodo a `mediosPorIndicador`
+     - asegura los campos nuevos del indicador en el catálogo */
+  function migrar(st) {
+    if (!st.catalogo) st.catalogo = catalogoSemilla();
+
+    /* Catálogo: garantizar campos nuevos en indicadores ya existentes */
+    var base = catalogoSemilla();
+    st.catalogo.forEach(function (ind) {
+      if (ind.editable === undefined) ind.editable = false;
+      if (ind.dimension === undefined) ind.dimension = '';
+      if (ind.definicion === undefined) ind.definicion = '';
+      if (ind.metodoCalculo === undefined) ind.metodoCalculo = '';
+      if (ind.origen === undefined) ind.origen = (ind.fuente || '').replace(' (muestra)', '');
+    });
+    /* Si el catálogo viejo perdió metadatos, recupéralos de la semilla por id */
+    base.forEach(function (sem) {
+      var actual = st.catalogo.find(function (i) { return i.id === sem.id; });
+      if (actual && !actual.definicion) {
+        actual.definicion = sem.definicion;
+        actual.dimension = actual.dimension || sem.dimension;
+        actual.metodoCalculo = actual.metodoCalculo || sem.metodoCalculo;
+        actual.origen = actual.origen || sem.origen;
+      }
+    });
+
+    /* Nodos: medios (string único) -> mediosPorIndicador (mapa) */
+    if (st.toc && st.toc.nodos) {
+      st.toc.nodos.forEach(function (n) {
+        if (!n.mediosPorIndicador) {
+          n.mediosPorIndicador = {};
+          /* el medio único previo se asigna al primer indicador del nodo */
+          if (n.medios && n.indicadores && n.indicadores.length) {
+            n.mediosPorIndicador[n.indicadores[0]] = n.medios;
+          }
+        }
+        delete n.medios;
+      });
+    }
+
+    st.version = VERSION;
   }
 
   var fallaGuardado = false;
@@ -206,7 +262,38 @@ var Store = (function () {
 
   /* ---------- Consultas frecuentes ---------- */
   function persona(id) { return PERSONAS.find(function (p) { return p.id === id; }) || null; }
-  function indicador(id) { return CATALOGO.find(function (i) { return i.id === id; }) || null; }
+  function catalogo() { return estado.catalogo || []; }
+  function indicador(id) { return catalogo().find(function (i) { return i.id === id; }) || null; }
+
+  /* Crea un indicador personalizado (editable) y devuelve su id */
+  function crearIndicador(parcial) {
+    var id = uid('ind');
+    mutar(function (s) {
+      s.catalogo.push({
+        id: id,
+        editable: true,
+        nombre: (parcial && parcial.nombre) || 'Nuevo indicador',
+        dimension: (parcial && parcial.dimension) || '',
+        definicion: (parcial && parcial.definicion) || '',
+        metodoCalculo: (parcial && parcial.metodoCalculo) || '',
+        origen: (parcial && parcial.origen) || '',
+        unidad: (parcial && parcial.unidad) || '',
+        fuente: 'Personalizado',
+      });
+    });
+    return id;
+  }
+
+  /* Actualiza campos de un indicador (solo si es editable) */
+  function actualizarIndicador(id, campos) {
+    var ind = indicador(id);
+    if (!ind || !ind.editable) return false;
+    mutar(function (s) {
+      var x = s.catalogo.find(function (i) { return i.id === id; });
+      Object.keys(campos).forEach(function (k) { x[k] = campos[k]; });
+    });
+    return true;
+  }
   function nodo(id) { return estado.toc.nodos.find(function (n) { return n.id === id; }) || null; }
   function tarea(id) { return estado.tareas.find(function (t) { return t.id === id; }) || null; }
   function epica(id) { return estado.epicas.find(function (e) { return e.id === id; }) || null; }
@@ -217,7 +304,7 @@ var Store = (function () {
     PERSONAS: PERSONAS,
     PERMISOS: PERMISOS,
     VISTA_INICIO: VISTA_INICIO,
-    CATALOGO: CATALOGO,
+    DIMENSIONES: DIMENSIONES,
     cargar: cargar,
     mutar: mutar,
     alCambiar: alCambiar,
@@ -227,7 +314,10 @@ var Store = (function () {
     guardadoFallo: function () { return fallaGuardado; },
     usoAlmacen: usoAlmacen,
     persona: persona,
+    catalogo: catalogo,
     indicador: indicador,
+    crearIndicador: crearIndicador,
+    actualizarIndicador: actualizarIndicador,
     nodo: nodo,
     tarea: tarea,
     epica: epica,
